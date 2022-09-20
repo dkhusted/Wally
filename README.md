@@ -5,6 +5,7 @@
 * [General Info](#general-information)
 * [Technologies Used](#technologies-used)
 * [Features](#features)
+* [Requirements](#requirements)
 * [Setup](#setup)
 * [Usage](#usage)
 * [Project Status](#project-status)
@@ -21,11 +22,27 @@
 
 
 ## Technologies Used
+Microprocessor: Particle Argon
+IDE: Visual Studio Code
+
 
 
 ## Features
 List the ready features here:
 
+## Requirements
+For this project the following requirements have been specified.
+
+### Camera
+Minimum distance for correct image recognition: 1.5 m.
+Pixel resolution: 343 pixels.
+Low power design.
+Should be able to detec objects moving 1.5 m/s, based on average walking speed for a person between 20-30.
+### MCU 
+Low power design.
+When no object movement have been detected, should enter low power mode.
+Has to be able to run a Machine learning algorithme for image classification. Images will be live stream
+Response time from low power to finishing image classification: <20 sec
 
 ## Setup
 
