@@ -1,5 +1,7 @@
 # Wally
 > A tiny helper
+> https://www.kaggle.com/code/sayakdasgupta/sign-language-classification-cnn-99-40-accuracy
+> 
 
 ## Table of Contents
 * [General Info](#general-information)
