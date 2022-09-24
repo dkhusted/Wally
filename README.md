@@ -1,6 +1,5 @@
 # Wally
 > A tiny helper
-> https://www.kaggle.com/code/sayakdasgupta/sign-language-classification-cnn-99-40-accuracy
 > 
 
 ## Table of Contents
@@ -26,8 +25,7 @@
 ## Technologies Used
 Microprocessor: Particle Argon
 IDE: Visual Studio Code
-
-
+Jupyter Notebook with different python libs. See the note book( Wally_CSV_prepper.ipynb) for details
 
 ## Features
 List the ready features here:
@@ -47,6 +45,11 @@ Has to be able to run a Machine learning algorithme for image classification. Im
 Response time from low power to finishing image classification: <20 sec
 
 ## Setup
+First i use Wally_CSV_prepper.ipynb to prepare the MNIST CSV file, this includes converting the data to the correct format and reorganizing the data.
+Afterwards it is uploaded to the Edge Impulse Ingestion Service, which requires the API and HMAC key from your own project on Edge Impulse. So change these in the notebook.
+Then i train a DNN(Deep Neural Network) on the dataset, launch it on the test set, fine tune the settings and finally convert it into a Arduino Library which then gets send to MCU compatible with the library(in my case i used an Particle Argon)
+Next i connect an OV7675 camera to the MCU and use an Arduino library to run it. 
+Then using the DNN i trained, i will be able to registere handsigns, which will be making webhooks to specified webservices, fx the handsign for "w" could pull the local weather forecast.
 
 ## Usage
 How does one go about using it?
@@ -56,10 +59,12 @@ Provide various use cases and code examples here.
 
 
 ## Project Status
-Project is: _in_definement
+Project is: _defined
+Project is now _progress
 
 ## Acknowledgements
-
+Some usefull links:
+ https://www.kaggle.com/code/sayakdasgupta/sign-language-classification-cnn-99-40-accuracy
 
 ## Contact
 Created by [@dkhusted] - feel free to contact me!
