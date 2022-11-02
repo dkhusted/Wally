@@ -24,16 +24,19 @@
 
 
 ## Technologies Used
-Microprocessor: Particle Argon
+Microprocessor: Particle Argon, Arduino Nano BLE 33
 IDE: Visual Studio Code
-
-
+Intern MCU communication: I2C
 
 ## Features
-List the ready features here:
+Sending 'c' via a serial monitor, like putty, to Arduino will cause it to read a frame from OV7675.
+Arduino generates only features via Edge Impulses DPS library, no classification as there is not enough space for both classification model and DSP model.
+Arduino sits as Master on I2C, to be able to talk to OV7675 camera, and sends the generatet features to Argon.
+	
 
 ## Requirements
-For this project the following requirements have been specified.
+Tiny ML Kit from Arduino & Edge Impulse
+Particle Argon MCU
 
 ### Camera
 Minimum distance for correct image recognition: 1.5 m.
