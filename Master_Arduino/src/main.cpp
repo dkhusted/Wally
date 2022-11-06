@@ -219,63 +219,38 @@ void loop()
 
         /*##################################################################################################################*/
         //For at sende alle features skriv: ix < features_matrix.cols
-        Serial.println();
+
+        
+        for (size_t ix = 0; ix < 2; ix++) { //<-- send 2 features, 
+
+        //IT WORKS !!
+        float feature = ((features_matrix.buffer[ix] - impulse_ptr->tflite_input_zeropoint) * impulse_ptr->tflite_input_scale);
+
         Wire.beginTransmission(8);
 
-        for (size_t ix = 0; ix < 2; ix++) {
-
-        /* Features bliver generet som float med 4 decimal præcision som fks: 
-          0.2312, 0.9821, 0.1287 osv
-          Hvordan kan det blive sendt intakt via I2C
-        */
-        //Convert to int so we can send it via wire. Slave should divede with 10000 and cast to float
-        //In order to send faster, convert faster back to float at slave i haven chosen uint16_t (2 bytes) rather than uint32 (4 bytes).
-        //This means i loose the 5 and 6 decimal from float.
-        float feature = ((features_matrix.buffer[ix] - impulse_ptr->tflite_input_zeropoint) * impulse_ptr->tflite_input_scale);
-        m_send[0] = (uint8_t)feature * 100; // 4 and 3 decimals of feature
-        m_send[1] = ((uint16_t)(feature * 10000) % ((uint16_t)(m_send[0]) * 100)); // 2 and 1 decimal of feature 
-        //Wire.write putter bytes i en queue som FØRST bliver transmittet når man kalder end transmission
+        uint16_t tmp_buf1 = feature * 100; // 1 and 2 decimals of feature
+        uint8_t buf2 = (((uint16_t)(feature * 10000)) % (tmp_buf1 * 100)); // 3 and 4 decimal of feature 
+        uint8_t buf1 = tmp_buf1;
         
-        /*
-            beginTransmission ændre ikke på noget om det er inde i loopet eller unden for.
-            beskeden sendes stadigvæk afsted forkert.
-            Transmission kan ikke være i et loop, bliver åbnet og lukket for hurtigt til at kunne skrive.
+        Wire.write(buf2); //LSB first
+        Serial.println("buf2 written succesfull");
+        
 
-            write bufferen er standard 32 bytes, kan ændres til mere efter behov
-
-        */
-
-       /*
-        DEBUGGING:
-        Send char afsted istedet for uint16_t
-       */
-        /*
-        Parameters for Wire.write
-        value: a value to send as a single byte.
-        string: a string to send as a series of bytes.
-        data: an array of data to send as bytes.
-        length: the number of bytes to transmit.
-        */
-
-        Wire.write(m_send, sizeof(m_send)); 
-
-
-        Serial.println(m_send[0]);
-        Serial.println(m_send[1]);
-        Serial.println();
+        Wire.write(buf1); 
+        Serial.println("buf1 written succesfull");        
+        Wire.endTransmission();
+        Serial.println(feature,4);
         
         }
-        Wire.endTransmission();
-
-
-        
+        //Efter jeg er færdig med at sende til Argon, send et stop tegn, så den ved at alle features for framen er sendt.
+        ei_camera_deinit();
 
         ei_printf("\n");
         
 
     }
 
-    ei_camera_deinit();
+    
 }
 
 /**
