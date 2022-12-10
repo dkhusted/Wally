@@ -11,24 +11,9 @@
 /* Constant variables ------------------------------------------------------- */
 #define EI_CAMERA_RAW_FRAME_BUFFER_COLS     160
 #define EI_CAMERA_RAW_FRAME_BUFFER_ROWS     120
+#define TIME_OUT_MS 25
 
 #define DWORD_ALIGN_PTR(a)   ((a & 0x3) ?(((uintptr_t)a + 0x4) & ~(uintptr_t)0x3) : a)
-
-/*
- ** NOTE: If you run into TFLite arena allocation issue.
- **
- ** This may be due to may dynamic memory fragmentation.
- ** Try defining "-DEI_CLASSIFIER_ALLOCATION_STATIC" in boards.local.txt (create
- ** if it doesn't exist) and copy this file to
- ** `<ARDUINO_CORE_INSTALL_PATH>/arduino/hardware/<mbed_core>/<core_version>/`.
- **
- ** See
- ** (https://support.arduino.cc/hc/en-us/articles/360012076960-Where-are-the-installed-cores-located-)
- ** to find where Arduino installs cores on your machine.
- **
- ** If the problem persists then there's not enough memory for this model and application.
- */
-
 
 /*
   I lib/Wally_handsignTest_multipleObjects_inferencing/src/edge-impulse-sdk/classifier/ei_run_dsp.h
@@ -155,7 +140,7 @@ void loop()
 {
 
     if(Serial.read() =='c') {
-        ei_printf("\nStarting feature generation...\n");
+        ei_printf("\nStarting feature generation...\n\r");
 
         // instead of wait_ms, we'll wait on the signal, this allows threads to cancel us...
         if (ei_sleep(2000) != EI_IMPULSE_OK) {
@@ -207,7 +192,7 @@ void loop()
  
         // Memory will be freed up when going out of scope, so when leaving if block
         ei::matrix_i8_t features_matrix(1, impulse_ptr->nn_input_frame_size, input->data.int8); 
-
+        //From tflite_eon.h line 319
         int ret = extract_image_features_quantized(impulse_ptr, signal_ptr, &features_matrix, ei_dsp_blocks[0].config, impulse_ptr->frequency);
         if (ret != EIDSP_OK) {
           ei_printf("ERR: Failed to run DSP process (%d)\n", ret);
@@ -220,34 +205,51 @@ void loop()
         /*##################################################################################################################*/
         //For at sende alle features skriv: ix < features_matrix.cols
 
-        
-        for (size_t ix = 0; ix < 2; ix++) { //<-- send 2 features, 
-
-        //IT WORKS !!
-        float feature = ((features_matrix.buffer[ix] - impulse_ptr->tflite_input_zeropoint) * impulse_ptr->tflite_input_scale);
-
+        //Total features to be generated: 96 x 96 = 9216 
+        // Grunden til at programmet fryser er at Wire.write ikke kan håntere at skrive 0 på bussen.
+        // Hvis jeg kaster til byte og skriver virker det stadigvæk ikke. Skal have ændret på write() så den kan håntere 0...
+        // Måske hente inspiration fra her :https://forum.arduino.cc/t/wire-write-0-doesnt-work/87857
+        uint8_t y[2] = {0}; 
+        for(uint16_t x = 0; x<features_matrix.cols; x++){
+            Wire.beginTransmission(8);
+            float feature = ((features_matrix.buffer[x] - impulse_ptr->tflite_input_zeropoint) * impulse_ptr->tflite_input_scale);
+            if ((feature == 0.0000) | (feature == 0.000000)){
+                y[0] = 100;
+                y[1] = 100;
+            }
+            else if (feature < 0.01){
+                y[1] = 100;
+                uint8_t tmp_buf2 = ((uint16_t)(feature * 10000));
+                y[0] = tmp_buf2;
+            }
+            else {
+                uint16_t tmp_buf1 = feature * 100; // 1 and 2 decimals of feature
+                uint8_t tmp_buf2 = (((uint16_t)(feature * 10000)) % (tmp_buf1 * 100)); // 3 and 4 decimal of feature  
+                if(tmp_buf2 == 0)
+                    {
+                        y[0] = 100;
+                    }
+                else y[0] = tmp_buf2;
+                if(tmp_buf1 == 0) 
+                    {
+                        y[1] = 100;
+                    }
+                else y[1] = tmp_buf1;
+            }
+            
+            Wire.write(y,2); 
+            Wire.endTransmission();
+        }    
+        Serial.println("Sent features");
         Wire.beginTransmission(8);
-
-        uint16_t tmp_buf1 = feature * 100; // 1 and 2 decimals of feature
-        uint8_t buf2 = (((uint16_t)(feature * 10000)) % (tmp_buf1 * 100)); // 3 and 4 decimal of feature 
-        uint8_t buf1 = tmp_buf1;
-        
-        Wire.write(buf2); //LSB first
-        Serial.println("buf2 written succesfull");
-        
-
-        Wire.write(buf1); 
-        Serial.println("buf1 written succesfull");        
-        Wire.endTransmission();
-        Serial.println(feature,4);
-        
+        for(int x = 0; x<3; x++){
+            Wire.write(1);
         }
-        //Efter jeg er færdig med at sende til Argon, send et stop tegn, så den ved at alle features for framen er sendt.
+        Wire.endTransmission();
+        Serial.println("Told slave to stop");
         ei_camera_deinit();
-
         ei_printf("\n");
         
-
     }
 
     

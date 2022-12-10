@@ -5,21 +5,33 @@
 /*   Global Variables                         */
 //Buffer for features 96*96 = 9216 floats
 float *feature_buf = (float *) malloc(9216*sizeof(float)); 
-int buf_ix = 0;
-
+volatile int buf_ix = 0;
+volatile bool end_flag = false;
 
 // Når den modtager "end" aka 6 bytes så har den modtaget de sidste features fra billedet før dette. TODO
 // e=101 n=110 d= 100 --> 311
 void receiveEvent(int howMany) {
     //Features sendt float * 10000. Needs to be divided by 10000
     float feature = 0.0;
+    int byte_counter = 0;
+    bool end = false;
     while(Wire.available())
     {
+        byte_counter++;
+        if(byte_counter==6){
+            end = true;
+            break;
+        }
         int s_receive = Wire.read();
         feature = (feature + s_receive) / 100;
     }
-    Serial.println("Feature from master:");    
-    Serial.println(feature,4);    
+    if(!end){
+        feature_buf[buf_ix] = feature;
+        buf_ix++;
+    }
+    else{
+        end_flag = true;
+    }
     feature_buf[buf_ix] = feature;
     buf_ix = buf_ix + 1;
 }
@@ -43,7 +55,14 @@ void setup()
 
 // I2C TEST
 void loop(){
-
+    if(end_flag){
+        Serial.println("End flag is true");
+        for(int i = 0; i < 9216; i++){
+            Serial.println(feature_buf[i]);
+        }
+        end_flag = false;
+        buf_ix = 0;
+    }
 
 }
 
