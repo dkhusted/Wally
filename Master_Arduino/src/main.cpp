@@ -219,22 +219,14 @@ void loop()
             }
             else if (feature < 0.01){
                 y[1] = 100;
-                uint8_t tmp_buf2 = ((uint16_t)(feature * 10000));
+                uint8_t tmp_buf2 = (feature * 10000);
                 y[0] = tmp_buf2;
             }
             else {
                 uint16_t tmp_buf1 = feature * 100; // 1 and 2 decimals of feature
                 uint8_t tmp_buf2 = (((uint16_t)(feature * 10000)) % (tmp_buf1 * 100)); // 3 and 4 decimal of feature  
-                if(tmp_buf2 == 0)
-                    {
-                        y[0] = 100;
-                    }
-                else y[0] = tmp_buf2;
-                if(tmp_buf1 == 0) 
-                    {
-                        y[1] = 100;
-                    }
-                else y[1] = tmp_buf1;
+                y[0] = tmp_buf2;
+                y[1] = tmp_buf1;
             }
             
             Wire.write(y,2); 
