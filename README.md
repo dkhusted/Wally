@@ -35,21 +35,16 @@ Arduino sits as Master on I2C, to be able to talk to OV7675 camera, and sends th
 	
 
 ## Requirements
-Tiny ML Kit from Arduino & Edge Impulse
-Particle Argon MCU
+Edge Impulse API
+Arduino Nano 33 BLE Sense Lite
+Particle Argon 
+2 x 4.7 kOhm Resistors
 
 ### Camera
-Minimum distance for correct image recognition: 1.5 m.
-Pixel resolution: 343 pixels.
-Low power design.
-Should be able to detec objects moving 1.5 m/s, based on average walking speed for a person between 20-30.
-### MCU 
-Low power design.
-When no object movement have been detected, should enter low power mode.
-Has to be able to run a Machine learning algorithme for image classification. Images will be live stream
-Response time from low power to finishing image classification: <20 sec
+OV7675 (I used it with the Tiny Machine Learning Shield, but you can connect it manually with wires to the Arduino)
 
 ## Setup
+We are going to setup the 
 
 ## Usage
 How does one go about using it?
