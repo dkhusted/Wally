@@ -1,23 +1,18 @@
-/* Edge Impulse inferencing library
+/*
  * Copyright (c) 2022 EdgeImpulse Inc.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an "AS
+ * IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef _EDGE_IMPULSE_RUN_CLASSIFIER_H_
@@ -55,13 +50,15 @@
 #endif
 
 #if (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE) && (EI_CLASSIFIER_COMPILED != 1)
-#include "edge-impulse-sdk/classifier/inferencing_engines/tflite_micro.h"
 #include "tflite-model/tflite-trained.h"
+#include "edge-impulse-sdk/classifier/inferencing_engines/tflite_micro.h"
 #elif EI_CLASSIFIER_COMPILED == 1
 #include "edge-impulse-sdk/classifier/inferencing_engines/tflite_eon.h"
 #elif EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE_FULL
 #include "edge-impulse-sdk/classifier/inferencing_engines/tflite_full.h"
 #include "tflite-model/tflite-trained.h"
+#elif EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE_TIDL
+#include "edge-impulse-sdk/classifier/inferencing_engines/tflite_tidl.h"
 #elif (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TENSORRT)
 #include "edge-impulse-sdk/classifier/inferencing_engines/tensorrt.h"
 #include "tflite-model/onnx-trained.h"
@@ -69,6 +66,8 @@
 #include "edge-impulse-sdk/classifier/inferencing_engines/tensaiflow.h"
 #elif EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_DRPAI
 #include "edge-impulse-sdk/classifier/inferencing_engines/drpai.h"
+#elif EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_AKIDA
+#include "edge-impulse-sdk/classifier/inferencing_engines/akida.h"
 #elif EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_NONE
 // noop
 #else
@@ -439,7 +438,6 @@ const ei_impulse_t impulse =
     .label_count = EI_CLASSIFIER_LABEL_COUNT,
     .has_anomaly = EI_CLASSIFIER_HAS_ANOMALY,
     .frequency = EI_CLASSIFIER_FREQUENCY,
-    .use_quantized_dsp_block = EI_CLASSIFIER_USE_QUANTIZED_DSP_BLOCK,
     .dsp_blocks_size = ei_dsp_blocks_size,
     .dsp_blocks = ei_dsp_blocks,
 
@@ -589,7 +587,7 @@ extern "C" EI_IMPULSE_ERROR run_classifier_image_quantized(
 
     memset(result, 0, sizeof(ei_impulse_result_t));
 
-    return run_nn_inference_image_quantized(impulse, signal, result, debug);
+    return EI_IMPULSE_OK;
 
 }
 
@@ -776,7 +774,7 @@ __attribute__((unused)) EI_IMPULSE_ERROR run_impulse(
     uint64_t sampling_us_start = ei_read_timer_us();
 
     // grab some data
-    for (int i = 0; i < impulse.dsp_input_frame_size; i += impulse.raw_samples_per_frame) {
+    for (int i = 0; i < (int)impulse.dsp_input_frame_size; i += impulse.raw_samples_per_frame) {
         uint64_t curr_us = ei_read_timer_us() - sampling_us_start;
 
         next_tick = curr_us + (impulse.interval_ms * 1000);

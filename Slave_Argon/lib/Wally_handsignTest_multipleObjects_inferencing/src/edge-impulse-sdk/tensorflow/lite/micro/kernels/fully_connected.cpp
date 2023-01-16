@@ -1166,7 +1166,7 @@ limitations under the License.
 #include "edge-impulse-sdk/tensorflow/lite/micro/kernels/fully_connected.h"
 #include "edge-impulse-sdk/tensorflow/lite/micro/kernels/kernel_util.h"
 
-#include <esp_nn.h>
+#include "edge-impulse-sdk/porting/espressif/ESP-NN/include/esp_nn.h"
 #include <esp_timer.h>
 
 long long fc_total_time = 0;
@@ -1234,7 +1234,6 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
                       TfLiteTypeGetName(input->type), input->type);
       return kTfLiteError;
       #endif
-
       tflite::reference_ops::FullyConnected(
           FullyConnectedParamsFloat(params->activation),
           tflite::micro::GetTensorShape(input),
@@ -1254,7 +1253,6 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
                       TfLiteTypeGetName(input->type), input->type);
       return kTfLiteError;
       #endif
-
       const int32_t* bias_data =
           nullptr != bias ? tflite::micro::GetTensorData<int32_t>(bias)
                           : nullptr;
@@ -1291,7 +1289,6 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
                       TfLiteTypeGetName(input->type), input->type);
       return kTfLiteError;
       #endif
-
       tflite::reference_ops::FullyConnected(
           FullyConnectedParamsQuantized(data),
           tflite::micro::GetTensorShape(input),
@@ -1304,7 +1301,7 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
           tflite::micro::GetTensorData<uint8_t>(output));
       break;
     }
-
+    
     default: {
       TF_LITE_KERNEL_LOG(context, "Type %s (%d) not supported.",
                          TfLiteTypeGetName(input->type), input->type);

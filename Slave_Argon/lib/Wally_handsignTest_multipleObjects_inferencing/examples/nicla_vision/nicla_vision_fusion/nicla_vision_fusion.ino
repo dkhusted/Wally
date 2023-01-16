@@ -1,23 +1,17 @@
-/* Edge Impulse Arduino examples
+/* Edge Impulse ingestion SDK
  * Copyright (c) 2022 EdgeImpulse Inc.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 /* Includes ---------------------------------------------------------------- */
@@ -30,20 +24,21 @@ typedef struct{
     const char *name;
     float *value;
     uint8_t (*poll_sensor)(void);
-    bool (*init_sensor)(void);    
+    bool (*init_sensor)(void);
     int8_t status;  // -1 not used 0 used(unitialized) 1 used(initalized) 2 data sampled
 } eiSensors;
 
 /* Constant defines -------------------------------------------------------- */
 #define CONVERT_G_TO_MS2    9.80665f
 #define MAX_ACCEPTED_RANGE  2.0f        // starting 03/2022, models are generated setting range to +-2,
-                                        // but this example use Arudino library which set range to +-4g. 
+                                        // but this example use Arudino library which set range to +-4g.
                                         // If you are using an older model, ignore this value and use 4.0f instead
 /** Number sensor axes used */
 #define N_SENSORS     7
 
 /* Forward declarations ------------------------------------------------------- */
 float ei_get_sign(float number);
+static bool ei_connect_fusion_list(const char *input_list);
 
 bool init_IMU(void);
 bool init_VL53L1X(void);
@@ -54,15 +49,11 @@ uint8_t poll_VL53L1X(void);
 
 /* Private variables ------------------------------------------------------- */
 static const bool debug_nn = false; // Set this to true to see e.g. features generated from the raw signal
-
 static float data[N_SENSORS];
-
-VL53L1X proximity;
-
-static bool ei_connect_fusion_list(const char *input_list);
-
 static int8_t fusion_sensors[N_SENSORS];
 static int fusion_ix = 0;
+
+VL53L1X proximity;
 
 /** Used sensors value function connected to label name */
 eiSensors sensors[] =
@@ -99,7 +90,7 @@ void setup()
         if (sensors[fusion_sensors[i]].status == 0) {
             sensors[fusion_sensors[i]].status = sensors[fusion_sensors[i]].init_sensor();
             if (!sensors[fusion_sensors[i]].status) {
-              ei_printf("%s axis sensor initialization failed.\r\n", sensors[fusion_sensors[i]].name);             
+              ei_printf("%s axis sensor initialization failed.\r\n", sensors[fusion_sensors[i]].name);
             }
             else {
               ei_printf("%s axis sensor initialization successful.\r\n", sensors[fusion_sensors[i]].name);
@@ -235,7 +226,6 @@ static bool ei_connect_fusion_list(const char *input_list)
         if(found_axis >= 0) {
             if(fusion_ix < N_SENSORS) {
                 fusion_sensors[fusion_ix++] = found_axis;
-                //ei_printf("%d \n", found_axis);
                 sensors[found_axis].status = 0;
             }
             is_fusion = true;
@@ -251,8 +241,8 @@ static bool ei_connect_fusion_list(const char *input_list)
 
 /**
  * @brief Return the sign of the number
- * 
- * @param number 
+ *
+ * @param number
  * @return int 1 if positive (or 0) -1 if negative
  */
 float ei_get_sign(float number) {
@@ -282,7 +272,7 @@ bool init_VL53L1X(void) {
 }
 
 uint8_t poll_acc(void) {
-  
+
     if (IMU.accelerationAvailable()) {
 
     IMU.readAcceleration(data[0], data[1], data[2]);
@@ -302,7 +292,7 @@ uint8_t poll_acc(void) {
 }
 
 uint8_t poll_gyr(void) {
-  
+
     if (IMU.gyroscopeAvailable()) {
         IMU.readGyroscope(data[3], data[4], data[5]);
     }

@@ -2,10 +2,12 @@
     "extensions.ignoreRecommendations": true,
     "C_Cpp.default.configurationProvider": "particle.particle-vscode-core",
     "files.associations": {
-        "*.ino": "cpp"
+        "*.ino": "cpp",
+        "system_error": "cpp"
     },
     "particle.targetPlatform": "argon",
     "particle.firmwareVersion": "4.0.0-alpha.1",
     "particle.targetDevice": "hobbit_gerbil",
-    "git.ignoreLimitWarning": true
+    "git.ignoreLimitWarning": true,
+    "C_Cpp.dimInactiveRegions": false
 }

@@ -1,23 +1,18 @@
-/* Edge Impulse inferencing library
+/*
  * Copyright (c) 2022 EdgeImpulse Inc.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an "AS
+ * IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef _EI_CLASSIFIER_INFERENCING_ENGINE_TENSORRT_H_
@@ -36,13 +31,15 @@
 
 #include <stdlib.h>
 #include "tflite/linux-jetson-nano/libeitrt.h"
-EiTrt* ei_trt_handle = NULL;
+EiTrt *ei_trt_handle = NULL;
 
-inline bool file_exists(char *model_file_name) {
+inline bool file_exists(char *model_file_name)
+{
     if (FILE *file = fopen(model_file_name, "r")) {
         fclose(file);
         return true;
-    } else {
+    }
+    else {
         return false;
     }
 }
@@ -67,17 +64,18 @@ EI_IMPULSE_ERROR run_nn_inference(
     #error "TensorRT requires an unquantized network"
     #endif
 
-    if (impulse->object_detection) {
-        ei_printf("ERR: Object detection models are not supported with TensorRT\n");
-        return EI_IMPULSE_UNSUPPORTED_INFERENCING_ENGINE;
-    }
-
     static char model_file_name[128];
-    snprintf(model_file_name, 128, "/tmp/%s-%d-%d", impulse->project_name, impulse->project_id, impulse->deploy_version);
+    snprintf(
+        model_file_name,
+        128,
+        "/tmp/%s-%d-%d.engine",
+        impulse->project_name,
+        impulse->project_id,
+        impulse->deploy_version);
 
     static bool first_run = !file_exists(model_file_name);
     if (first_run) {
-        ei_printf("INFO: Model file '%s' does not exist, writing now \n", model_file_name);
+        ei_printf("INFO: Model file '%s' does not exist, creating now. \n", model_file_name);
 
         FILE *file = fopen(model_file_name, "w");
         if (!file) {
@@ -86,39 +84,72 @@ EI_IMPULSE_ERROR run_nn_inference(
         }
 
         if (fwrite(impulse->model_arr, impulse->model_arr_size, 1, file) != 1) {
-            ei_printf("ERR: TensorRT init fwrite failed\n");
+            ei_printf("ERR: TensorRT init fwrite failed.\n");
             return EI_IMPULSE_TENSORRT_INIT_FAILED;
         }
 
         if (fclose(file) != 0) {
-            ei_printf("ERR: TensorRT init fclose failed\n");
+            ei_printf("ERR: TensorRT init fclose failed.\n");
             return EI_IMPULSE_TENSORRT_INIT_FAILED;
         }
     }
 
-    float tensorrt_output[impulse->label_count];
+    float out_data[impulse->tflite_output_features_count];
 
     // lazy initialize tensorRT context
-    if( ei_trt_handle == nullptr ) {
+    if (ei_trt_handle == nullptr) {
         ei_trt_handle = libeitrt::create_EiTrt(model_file_name, debug);
     }
 
     uint64_t ctx_start_us = ei_read_timer_us();
 
-    libeitrt::infer(ei_trt_handle, fmatrix->buffer, tensorrt_output, impulse->label_count);
+    libeitrt::infer(ei_trt_handle, fmatrix->buffer, out_data, impulse->tflite_output_features_count);
 
     uint64_t ctx_end_us = ei_read_timer_us();
 
     result->timing.classification_us = ctx_end_us - ctx_start_us;
     result->timing.classification = (int)(result->timing.classification_us / 1000);
 
-    for( int i = 0; i < impulse->label_count; ++i) {
-        result->classification[i].label = ei_classifier_inferencing_categories[i];
-        result->classification[i].value = tensorrt_output[i];
+    EI_IMPULSE_ERROR fill_res = EI_IMPULSE_OK;
+
+    if (impulse->object_detection) {
+        switch (impulse->object_detection_last_layer) {
+        case EI_CLASSIFIER_LAST_LAYER_FOMO: {
+            fill_res = fill_result_struct_f32_fomo(
+                impulse,
+                result,
+                out_data,
+                impulse->input_width / 8,
+                impulse->input_height / 8);
+            break;
+        }
+        case EI_CLASSIFIER_LAST_LAYER_SSD: {
+            ei_printf("ERR: SSD models are not supported using TensorRT \n");
+            return EI_IMPULSE_UNSUPPORTED_INFERENCING_ENGINE;
+            break;
+        }
+        case EI_CLASSIFIER_LAST_LAYER_YOLOV5:
+        case EI_CLASSIFIER_LAST_LAYER_YOLOV5_V5_DRPAI: {
+            ei_printf("ERR: YOLOv5 models are not supported using TensorRT \n");
+            return EI_IMPULSE_UNSUPPORTED_INFERENCING_ENGINE;
+        }
+        default: {
+            ei_printf(
+                "ERR: Unsupported object detection last layer (%d)\n",
+                impulse->object_detection_last_layer);
+            return EI_IMPULSE_UNSUPPORTED_INFERENCING_ENGINE;
+        }
+        }
+    }
+    else {
+        fill_res = fill_result_struct_f32(impulse, result, out_data, debug);
+    }
+
+    if (fill_res != EI_IMPULSE_OK) {
+        return fill_res;
     }
 
     return EI_IMPULSE_OK;
-
 }
 
 /**

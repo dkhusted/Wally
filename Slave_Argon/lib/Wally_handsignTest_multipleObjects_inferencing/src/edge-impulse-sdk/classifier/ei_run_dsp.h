@@ -1,23 +1,18 @@
-/* Edge Impulse inferencing library
- * Copyright (c) 2021 EdgeImpulse Inc.
+/*
+ * Copyright (c) 2022 EdgeImpulse Inc.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an "AS
+ * IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef _EDGE_IMPULSE_RUN_DSP_H_
@@ -27,6 +22,9 @@
 #include "edge-impulse-sdk/dsp/spectral/spectral.hpp"
 #include "edge-impulse-sdk/dsp/speechpy/speechpy.hpp"
 #include "edge-impulse-sdk/classifier/ei_signal_with_range.h"
+#ifdef EI_CLASSIFIER_HAS_MODEL_VARIABLES
+#include "model-parameters/model_variables.h"
+#endif
 
 #if defined(__cplusplus) && EI_C_LINKAGE == 1
 extern "C" {
@@ -61,12 +59,37 @@ __attribute__((unused)) int extract_spectral_analysis_features(
 
     // input matrix from the raw signal
     matrix_t input_matrix(signal->total_length / config->axes, config->axes);
-    if (!input_matrix.buffer) {  
+    if (!input_matrix.buffer) {
         EIDSP_ERR(EIDSP_OUT_OF_MEM);
     }
 
     signal->get_data(0, signal->total_length, input_matrix.buffer);
 
+#if EI_DSP_PARAMS_SPECTRAL_ANALYSIS_ANALYSIS_TYPE_WAVELET || EI_DSP_PARAMS_ALL
+    if (strcmp(config->analysis_type, "Wavelet") == 0) {
+        return spectral::wavelet::extract_wavelet_features(&input_matrix, output_matrix, config, frequency);
+    }
+#endif
+
+#if EI_DSP_PARAMS_SPECTRAL_ANALYSIS_ANALYSIS_TYPE_FFT || EI_DSP_PARAMS_ALL
+    if (strcmp(config->analysis_type, "FFT") == 0) {
+        if (config->implementation_version == 1) {
+            return spectral::feature::extract_spectral_analysis_features_v1(
+                &input_matrix,
+                output_matrix,
+                config,
+                frequency);
+        } else {
+            return spectral::feature::extract_spectral_analysis_features_v2(
+                &input_matrix,
+                output_matrix,
+                config,
+                frequency);
+        }
+    }
+#endif
+
+#if !EI_DSP_PARAMS_GENERATED || EI_DSP_PARAMS_ALL || !(EI_DSP_PARAMS_SPECTRAL_ANALYSIS_ANALYSIS_TYPE_FFT || EI_DSP_PARAMS_SPECTRAL_ANALYSIS_ANALYSIS_TYPE_WAVELET)
     if (config->implementation_version == 1) {
         return spectral::feature::extract_spectral_analysis_features_v1(
             &input_matrix,
@@ -81,7 +104,7 @@ __attribute__((unused)) int extract_spectral_analysis_features(
             config,
             frequency);
     }
-
+#endif
     return EIDSP_NOT_SUPPORTED;
 }
 
@@ -362,8 +385,11 @@ __attribute__((unused)) int extract_mfcc_per_slice_features(signal_t *signal, ma
     const int frame_overlap_values = static_cast<int>(frame_length_values) - static_cast<int>(frame_stride_values);
 
     if (frame_overlap_values < 0) {
-        ei_printf("ERR: frame_length (%f) cannot be lower than frame_stride (%f) for continuous classification\n",
-            config.frame_length, config.frame_stride);
+        ei_printf("ERR: frame_length (");
+        ei_printf_float(config.frame_length);
+        ei_printf(") cannot be lower than frame_stride (");
+        ei_printf_float(config.frame_stride);
+        ei_printf(") for continuous classification\n");
         EIDSP_ERR(EIDSP_PARAMETER_INVALID);
     }
 
@@ -638,8 +664,11 @@ __attribute__((unused)) int extract_spectrogram_per_slice_features(signal_t *sig
     const int frame_overlap_values = static_cast<int>(frame_length_values) - static_cast<int>(frame_stride_values);
 
     if (frame_overlap_values < 0) {
-        ei_printf("ERR: frame_length (%f) cannot be lower than frame_stride (%f) for continuous classification\n",
-            config.frame_length, config.frame_stride);
+        ei_printf("ERR: frame_length (");
+        ei_printf_float(config.frame_length);
+        ei_printf(") cannot be lower than frame_stride (");
+        ei_printf_float(config.frame_stride);
+        ei_printf(") for continuous classification\n");
         EIDSP_ERR(EIDSP_PARAMETER_INVALID);
     }
 
@@ -961,8 +990,12 @@ __attribute__((unused)) int extract_mfe_per_slice_features(signal_t *signal, mat
     const int frame_overlap_values = static_cast<int>(frame_length_values) - static_cast<int>(frame_stride_values);
 
     if (frame_overlap_values < 0) {
-        ei_printf("ERR: frame_length (%f) cannot be lower than frame_stride (%f) for continuous classification\n",
-            config.frame_length, config.frame_stride);
+        ei_printf("ERR: frame_length (");
+            ei_printf_float(config.frame_length);
+            ei_printf(") cannot be lower than frame_stride (");
+            ei_printf_float(config.frame_stride);
+            ei_printf(") for continuous classification\n");
+
         if (preemphasis) {
             delete preemphasis;
         }
@@ -1347,7 +1380,7 @@ __attribute__((unused)) int ei_dsp_clear_continuous_audio_state() {
  * @param      matrix      Source and destination matrix
  * @param      config_ptr  ei_dsp_config_mfcc_t struct pointer
  */
-static void calc_cepstral_mean_and_var_normalization_mfcc(ei_matrix *matrix, void *config_ptr)
+__attribute__((unused)) void calc_cepstral_mean_and_var_normalization_mfcc(ei_matrix *matrix, void *config_ptr)
 {
     ei_dsp_config_mfcc_t *config = (ei_dsp_config_mfcc_t *)config_ptr;
 
@@ -1375,7 +1408,7 @@ static void calc_cepstral_mean_and_var_normalization_mfcc(ei_matrix *matrix, voi
  * @param      matrix      Source and destination matrix
  * @param      config_ptr  ei_dsp_config_mfe_t struct pointer
  */
-static void calc_cepstral_mean_and_var_normalization_mfe(ei_matrix *matrix, void *config_ptr)
+__attribute__((unused)) void calc_cepstral_mean_and_var_normalization_mfe(ei_matrix *matrix, void *config_ptr)
 {
     ei_dsp_config_mfe_t *config = (ei_dsp_config_mfe_t *)config_ptr;
 
@@ -1413,7 +1446,7 @@ static void calc_cepstral_mean_and_var_normalization_mfe(ei_matrix *matrix, void
  * @param      matrix      Source and destination matrix
  * @param      config_ptr  ei_dsp_config_spectrogram_t struct pointer
  */
-static void calc_cepstral_mean_and_var_normalization_spectrogram(ei_matrix *matrix, void *config_ptr)
+__attribute__((unused)) void calc_cepstral_mean_and_var_normalization_spectrogram(ei_matrix *matrix, void *config_ptr)
 {
     ei_dsp_config_spectrogram_t *config = (ei_dsp_config_spectrogram_t *)config_ptr;
 
