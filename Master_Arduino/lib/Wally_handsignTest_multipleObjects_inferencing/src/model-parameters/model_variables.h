@@ -31,10 +31,13 @@ const char* ei_classifier_inferencing_categories[] = { "a" };
 uint8_t ei_dsp_config_3_axes[] = { 0 };
 const uint32_t ei_dsp_config_3_axes_size = 1;
 ei_dsp_config_image_t ei_dsp_config_3 = {
-    1,
-    1,
-    "Grayscale"
+    1, // int implementationVersion
+    1, // int length of axes
+    "Grayscale" // select channels
 };
+
+#define EI_DSP_PARAMS_GENERATED 1
+
 const ei_model_performance_calibration_t ei_calibration = {
     1, /* integer version number */
     false, /* has configured performance calibration */

@@ -182,7 +182,7 @@ void loop()
         signal.get_data = &ei_camera_cutout_get_data;
 
         signal_t *signal_ptr = &signal;
-        /*########################Segment to extract only features#############################################################*/
+        /*########################Segment to extract quantized features#############################################################*/
         
         const ei_impulse_t impulse = ei_construct_impulse();
         const ei_impulse_t *impulse_ptr = &impulse;
@@ -191,9 +191,11 @@ void loop()
         TfLiteTensor* input;
  
         // Memory will be freed up when going out of scope, so when leaving if block
-        ei::matrix_i8_t features_matrix(1, impulse_ptr->nn_input_frame_size, input->data.int8); 
         //From tflite_eon.h line 319
-        int ret = extract_image_features_quantized(impulse_ptr, signal_ptr, &features_matrix, ei_dsp_blocks[0].config, impulse_ptr->frequency);
+
+        ei::matrix_t features_matrix(1,2304);
+        int ret = extract_image_features(signal_ptr, &features_matrix,ei_dsp_blocks[0].config, impulse_ptr->frequency);
+
         if (ret != EIDSP_OK) {
           ei_printf("ERR: Failed to run DSP process (%d)\n", ret);
         }
@@ -203,16 +205,10 @@ void loop()
         }
 
         /*##################################################################################################################*/
-        //For at sende alle features skriv: ix < features_matrix.cols
-
-        //Total features to be generated: 96 x 96 = 9216 
-        // Grunden til at programmet fryser er at Wire.write ikke kan håntere at skrive 0 på bussen.
-        // Hvis jeg kaster til byte og skriver virker det stadigvæk ikke. Skal have ændret på write() så den kan håntere 0...
-        // Måske hente inspiration fra her :https://forum.arduino.cc/t/wire-write-0-doesnt-work/87857
         uint8_t y[2] = {0}; 
         for(uint16_t x = 0; x<features_matrix.cols; x++){
             Wire.beginTransmission(8);
-            float feature = ((features_matrix.buffer[x] - impulse_ptr->tflite_input_zeropoint) * impulse_ptr->tflite_input_scale);
+            float feature = features_matrix.buffer[x];
             if ((feature == 0.0000) | (feature == 0.000000)){
                 y[0] = 100;
                 y[1] = 100;
@@ -232,6 +228,19 @@ void loop()
             Wire.write(y,2); 
             Wire.endTransmission();
         }    
+        
+        /*
+        for(uint16_t x = 0; x<features_matrix.cols; x++){
+            Wire.beginTransmission(8);
+            int8_t feature = features_matrix.buffer[x];
+            if(feature == 0){
+                feature = 100;
+            }
+            Wire.write(feature);
+            Wire.endTransmission();
+        }
+        */
+
         Serial.println("Sent features");
         Wire.beginTransmission(8);
         for(int x = 0; x<3; x++){
