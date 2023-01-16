@@ -180,21 +180,15 @@ void loop()
         ei::signal_t signal;
         signal.total_length = EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT;
         signal.get_data = &ei_camera_cutout_get_data;
-
-        signal_t *signal_ptr = &signal;
         /*########################Segment to extract quantized features#############################################################*/
         
         const ei_impulse_t impulse = ei_construct_impulse();
         const ei_impulse_t *impulse_ptr = &impulse;
-
-        uint64_t ctx_start_us;
-        TfLiteTensor* input;
  
         // Memory will be freed up when going out of scope, so when leaving if block
         //From tflite_eon.h line 319
-
         ei::matrix_t features_matrix(1,2304);
-        int ret = extract_image_features(signal_ptr, &features_matrix,ei_dsp_blocks[0].config, impulse_ptr->frequency);
+        int ret = extract_image_features(&signal, &features_matrix,ei_dsp_blocks[0].config, impulse_ptr->frequency); 
 
         if (ret != EIDSP_OK) {
           ei_printf("ERR: Failed to run DSP process (%d)\n", ret);
